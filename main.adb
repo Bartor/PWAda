@@ -19,7 +19,8 @@ begin
    ItemQueue.size(Config.itemSize);
 
    ce.Verbose(Config.verbose);
-   ce.Timeout(Config.ceoDelay);
+   ce.Hi(Config.ceoDelayHi);
+   ce.Lo(Config.ceoDelayLo);
 
    for i in w'Range loop
       w(i).Verbose(Config.verbose);

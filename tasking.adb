@@ -1,5 +1,6 @@
 with TaskItem;
 with Ada.Text_IO;
+with Ada.Numerics.Float_Random;
 
 use Ada.Text_IO;
 with Ada.Containers.Vectors;
@@ -71,24 +72,36 @@ package body Tasking is
    task body Ceo is
       newTask: myTask;
       v: Boolean;
-      t: Duration;
+      hiD: Float;
+      loD: Float;
+      gen: Ada.Numerics.Float_Random.Generator;
+      rnd: Float;
    begin
       accept Verbose (verbose : in Boolean) do
          v := verbose;
       end Verbose;
       
-      accept Timeout (timeout : in Duration) do
-         t := timeout;
-      end Timeout;
+      accept Hi (delayHi : in Float) do
+         hiD := delayHi;
+      end Hi;
+      
+      accept Lo (delayLo : in Float) do
+         loD := delayLo;
+      end Lo;
       
       loop
+         Ada.Numerics.Float_Random.Reset(gen);
+         
          newTask := TaskItem.newTask;
          TaskQueue.newTask(newTask);
          
          if v then
             Put_Line("[CEO] " & TaskItem.printTask(newTask));
          end if;
-         delay t;
+         
+         rnd := Ada.Numerics.Float_Random.Random(gen)*hiD + loD;
+         
+         delay Duration(rnd);
          
       end loop;
       

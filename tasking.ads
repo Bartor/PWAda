@@ -5,7 +5,8 @@ package Tasking is
 
    task type Ceo is
       entry Verbose (verbose: in Boolean);
-      entry Timeout (timeout: in Duration);
+      entry Hi (delayHi: in Float);
+      entry Lo (delayLo: in Float);
    end Ceo;
    
    task type Worker is
