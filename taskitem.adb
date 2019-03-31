@@ -51,14 +51,14 @@ package body TaskItem is
             
    end newTask;
    
-   function printItem(This: myItem) is
+   function printItem(This: myItem) return String is
    begin
-      Put_Line("Item {" & Integer'Image(This.Value) & "}");
+      return "Item {" & Integer'Image(This.Value) & " }";
    end printItem;
    
-   function printTask(This: myTask) is
+   function printTask(This: myTask) return String is
    begin
-      Put_Line("Task {" & Integer'Image(This.Fst) & ", " & Integer'Image(This.Snd) & "}");
+      return "Task {" & Integer'Image(This.Fst) & "," & Integer'Image(This.Snd) & " }";
    end printTask;
    
    function add(A, B: Integer) return Integer is

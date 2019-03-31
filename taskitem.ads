@@ -19,8 +19,8 @@ package TaskItem is
    
    function newTask return myTask;
    
-   function printTask(This: myTask);
-   function printItem(This: myItem);
+   function printTask(This: myTask) return String;
+   function printItem(This: myItem) return String;
    
 private
    function add(A, B: Integer) return Integer;
