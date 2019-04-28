@@ -12,6 +12,7 @@ procedure Main is
    ce: Ceo;
    w: array (0..Config.workers) of Worker;
    c: array (0..Config.clients) of Client;
+   m: array (0..Config.machines) of Machine;
    input: String(1..128);
    last: Natural;
 begin

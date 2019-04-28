@@ -4,11 +4,9 @@ use Ada.Text_IO;
 
 package body TaskItem is
 
-   function solveTask(This: myTask) return Integer is
-      val: Integer;
+   function solveTask(This: myTask'Access) is
    begin
-      val := This.Opr(This.Fst, This.Snd);
-      return val;
+      This.Res := This.Opr(This.Fst, This.Snd);
    end solveTask;
    
    function newTask return myTask is
@@ -40,12 +38,12 @@ package body TaskItem is
            
       case Opr is    
          when 0 => OprAccess := add'Access;
-         when 1 => OprAccess := sub'Access;   
-         when 2 => OprAccess := mul'Access;   
+         when 1 => OprAccess := sub'Access;
+         when 2 => OprAccess := mul'Access;
          when others => OprAccess := add'Access;    
       end case;
       
-      newTask := (Fst, Snd, OprAccess);
+      newTask := (Fst, Snd, OprAccess, 0, -1);
       
       return newTask;
             

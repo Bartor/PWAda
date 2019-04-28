@@ -3,6 +3,13 @@ use TaskItem;
 
 package Tasking is
 
+   task type Machine is
+      entry Id (id: in Integer);
+      entry newTask (newTask: in myTask);
+      entry Verbose(verbose: in Boolean);
+      entry Timeout(timeout: in Duration);
+   end Machine;
+   
    task type Ceo is
       entry Verbose (verbose: in Boolean);
       entry Hi (delayHi: in Float);
@@ -12,7 +19,8 @@ package Tasking is
    task type Worker is
       entry Verbose (verbose: in Boolean);
       entry Timeout (timeout: in Duration);
-      entry Id (id: in Integer);      
+      entry Notify (n: in Integer);
+      entry Id (id: in Integer);
    end Worker;
    
    task type Client is

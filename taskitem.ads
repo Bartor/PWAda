@@ -13,9 +13,11 @@ package TaskItem is
          Fst: Integer;
          Snd: Integer;
          Opr: OperationAccess;
+         Res: Integer;
+         Author: Integer;
       end record;
    
-   function solveTask(This: myTask) return Integer;
+   function solveTask(This: myTask'Access);
    
    function newTask return myTask;
    

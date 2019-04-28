@@ -1,11 +1,47 @@
+with RandGen;
 with TaskItem;
 with Ada.Text_IO;
 with Ada.Numerics.Float_Random;
 
+use RandGen;
 use Ada.Text_IO;
 with Ada.Containers.Vectors;
 
 package body Tasking is
+   
+   task body Machine is
+      myId: Integer;
+      v: Boolean;
+      t: Duration;
+      currentTask: myTask;
+   begin
+      accept Id (id : in Integer) do
+         myId = id;
+      end Id;
+      
+      accept Verbose (verbose : in Boolean) do
+         v = verbose;
+      end Verbose;
+      
+      accept Timeout (timeout : in Duration) do
+         t = timeout;
+      end Timeout;
+      
+      loop
+         accept newTask (newTask : in myTask) do
+            currentTask = newTask;
+         end newTask;
+         
+         TaskItem.solveTask(currentTask'Access);
+         
+         if v then
+            Put_Line("[MCH " & Integer'Image(myId) & "] solved " & TaskItem.printTask(currentTask));
+         end if;
+         
+         delay t;
+         
+      end loop;
+   end Machine;
 
    task body ItemQueue is
       package ItemList is new Ada.Containers.Vectors(Natural, myItem);
@@ -114,7 +150,11 @@ package body Tasking is
       currentTask: myTask;
       value: Integer;
       currentItem: myItem;
+      currentMachine: Integer;
+      patient: Boolean;
    begin
+      patient = RandGen.get_random(2) == 0
+      
       accept Verbose (verbose : in Boolean) do
          v := verbose;
       end Verbose;
