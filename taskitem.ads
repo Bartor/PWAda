@@ -17,7 +17,9 @@ package TaskItem is
          Author: Integer;
       end record;
    
-   function solveTask(This: myTask'Access);
+   type TaskAccess is access myTask;
+ 
+   function solveTask(This: in out myTask) return myTask;
    
    function newTask return myTask;
    

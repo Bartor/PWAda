@@ -2,12 +2,22 @@ with RandGen;
 with TaskItem;
 with Ada.Text_IO;
 with Ada.Numerics.Float_Random;
+with Config;
 
 use RandGen;
 use Ada.Text_IO;
 with Ada.Containers.Vectors;
 
 package body Tasking is
+   
+   m: array (0..Config.machines) of Machine;
+   w: array (0..Config.workers) of Worker;
+   
+   ce: Ceo;
+   c: array (0..Config.clients) of Client;
+   
+   input: String(1..128);
+   last: Natural;
    
    task body Machine is
       myId: Integer;
@@ -16,23 +26,25 @@ package body Tasking is
       currentTask: myTask;
    begin
       accept Id (id : in Integer) do
-         myId = id;
+         myId := id;
       end Id;
       
-      accept Verbose (verbose : in Boolean) do
-         v = verbose;
-      end Verbose;
-      
-      accept Timeout (timeout : in Duration) do
-         t = timeout;
-      end Timeout;
+      v := Config.verbose;
+      t := Config.machineDelay;
       
       loop
          accept newTask (newTask : in myTask) do
-            currentTask = newTask;
+            currentTask := newTask;
          end newTask;
          
-         TaskItem.solveTask(currentTask'Access);
+         currentTask := TaskItem.solveTask(currentTask);
+         
+         select
+            w(currentTask.Author).Notify(currentTask);
+         or
+            delay 0.001;
+         end select;
+         
          
          if v then
             Put_Line("[MCH " & Integer'Image(myId) & "] solved " & TaskItem.printTask(currentTask));
@@ -50,9 +62,7 @@ package body Tasking is
       
    begin
       
-      accept size (size : in Integer) do
-         s := size;
-      end size;
+      s := Config.itemSize;
       
       loop
          select
@@ -68,8 +78,12 @@ package body Tasking is
                end getItem;
                il.Delete_First;
          or
-            accept state (state : in Boolean) do
-               Put_Line("Items n: " & Integer'Image(Integer(il.Length)));
+            accept state do
+               Put_Line("Items:");
+               for i in il.Iterate loop
+                  Put_Line(TaskItem.printItem(il.Reference(i)));
+               end loop;
+               
             end state;
          end select;
       end loop;
@@ -81,9 +95,9 @@ package body Tasking is
       tl: TaskList.Vector;
       s: Integer;
    begin
-      accept size (size : in Integer) do
-         s := size;
-      end size;
+      
+      s := Config.taskSize;
+      
       loop
          select
             when Integer(tl.Length) < s =>
@@ -98,8 +112,11 @@ package body Tasking is
                tl.Delete_First;
                
          or
-            accept state (state : in Boolean) do
-               Put_Line("Tasks n: " & Integer'Image(Integer(tl.Length)));
+            accept state do
+               Put_Line("Tasks:");
+               for i in tl.Iterate loop
+                  Put_Line(TaskItem.printTask(tl.Reference(i)));
+               end loop;            
             end state;
          end select;
       end loop;
@@ -113,18 +130,9 @@ package body Tasking is
       gen: Ada.Numerics.Float_Random.Generator;
       rnd: Float;
    begin
-      accept Verbose (verbose : in Boolean) do
-         v := verbose;
-      end Verbose;
-      
-      accept Hi (delayHi : in Float) do
-         hiD := delayHi;
-      end Hi;
-      
-      accept Lo (delayLo : in Float) do
-         loD := delayLo;
-      end Lo;
-      
+      v := Config.verbose;
+      hiD := Config.ceoDelayHi;
+      loD := Config.ceoDelayLo;      
       loop
          Ada.Numerics.Float_Random.Reset(gen);
          
@@ -148,29 +156,59 @@ package body Tasking is
       v: Boolean;
       t: Duration;
       currentTask: myTask;
-      value: Integer;
       currentItem: myItem;
       currentMachine: Integer;
+      tasks: Integer;
       patient: Boolean;
+      done: Boolean;
    begin
-      patient = RandGen.get_random(2) == 0
+      patient := RandGen.get_random(2) = 0;
+      tasks := 0;
       
-      accept Verbose (verbose : in Boolean) do
-         v := verbose;
-      end Verbose;
-      
-      accept Timeout (timeout : in Duration) do
-         t := timeout;
-      end Timeout;
+      v := Config.verbose;
+      t := Config.workerDelay;
          
       accept Id (id : in Integer) do
          myId := id;
       end Id;
       
       loop
+         select
+            accept Status do
+               Put_Line(Integer'Image(tasks) & " " & Boolean'Image(patient));
+            end Status;
+         else
+            null;
+         end select;
+                  
          TaskQueue.getTask(currentTask);
-         value := TaskItem.solveTask(currentTask);
-         currentItem := (Value => value);
+         currentTask.Author := myId;
+         
+         if patient then
+            currentMachine := myId mod Config.machines;
+            m(currentMachine).newTask(currentTask);
+            accept Notify (n : in myTask) do
+               currentTask := n;
+            end Notify;
+         else
+            done := False;
+            currentMachine := myId mod Config.machines;
+            while not done loop
+               currentMachine := (currentMachine + 1) mod Config.machines;
+               m(currentMachine).newTask(currentTask);
+               select
+                  accept Notify (n : in myTask) do
+                     currentTask := n;
+                        done := True;
+                        tasks := tasks + 1;
+                  end Notify;
+               or
+                  delay Config.workerWait;
+               end select;
+            end loop;
+         end if;
+         
+         currentItem := (Value => currentTask.Res);
          
          ItemQueue.newItem(currentItem);
          
@@ -188,13 +226,9 @@ package body Tasking is
       t: Duration;
       currentItem: myItem;
    begin
-      accept Verbose (verbose : in Boolean) do
-         v := verbose;
-      end Verbose;
       
-      accept Timeout (timeout : in Duration) do
-         t := timeout;
-      end Timeout;
+      v := Config.verbose;
+      t := Config.clientDelay;
       
       accept Id (id : in Integer) do
          myId := id;
@@ -211,5 +245,40 @@ package body Tasking is
       end loop;
    end Client;
    
+begin
+   for i in w'Range loop
+      w(i).Id(i);
+   end loop;
+   
+   for i in m'Range loop
+      m(i).Id(i);
+   end loop;
+   
+   for i in c'Range loop
+      c(i).Id(i);
+   end loop;
+   
+   if not Config.verbose then
+      loop
+         Get_Line(input, last);
+
+         case input(1) is
+            when 's' =>
+               for i in w'Range loop
+                  w(i).Status;
+               end loop;
+            when 't' =>
+               TaskQueue.state;
+            when 'i' =>
+               ItemQueue.state;
+            when 'h' =>
+               Put_Line("i - item list");
+               Put_Line("t - task list");
+               Put_Line("s - task list");
+            when others =>
+               Put_Line("type h for help");
+         end case;
+      end loop;
+   end if;
 
 end tasking;

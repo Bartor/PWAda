@@ -4,9 +4,10 @@ use Ada.Text_IO;
 
 package body TaskItem is
 
-   function solveTask(This: myTask'Access) is
+   function solveTask(This: in out myTask) return myTask is
    begin
       This.Res := This.Opr(This.Fst, This.Snd);
+      return This;
    end solveTask;
    
    function newTask return myTask is

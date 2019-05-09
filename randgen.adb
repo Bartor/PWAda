@@ -1,3 +1,5 @@
+with Ada.Numerics.Discrete_Random;
+
 package body RandGen is
    subtype Rand_Range is Positive;
    package Rand_Int is new Ada.Numerics.Discrete_Random(Rand_Range);
