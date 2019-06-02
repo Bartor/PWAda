@@ -2,18 +2,21 @@ with RandGen;
 with TaskItem;
 with Ada.Text_IO;
 with Ada.Numerics.Float_Random;
+with Ada.Containers.Synchronized_Queue_Interfaces;
+with Ada.Containers.Vectors;
 with Config;
 
 use RandGen;
 use Ada.Text_IO;
-with Ada.Containers.Vectors;
 
 package body Tasking is
-   
+      
+   r: array (0..Config.repairMan) of Repairman;
    m: array (0..Config.machines) of Machine;
    w: array (0..Config.workers) of Worker;
    
    ce: Ceo;
+   
    c: array (0..Config.clients) of Client;
    
    input: String(1..128);
@@ -24,31 +27,50 @@ package body Tasking is
       v: Boolean;
       t: Duration;
       currentTask: myTask;
+      b: Boolean;
    begin
       accept Id (id : in Integer) do
          myId := id;
       end Id;
       
+      b := False;
+      
       v := Config.verbose;
       t := Config.machineDelay;
       
       loop
+         select
+            accept backdoor  do
+               b := False;
+            end backdoor;
+         else
+            null;
+         end select;
+         
          accept newTask (newTask : in myTask) do
             currentTask := newTask;
          end newTask;
          
-         currentTask := TaskItem.solveTask(currentTask);
+         if b then
+            currentTask.Brk := True;
+         else
+            currentTask.Brk := False;
+            currentTask := TaskItem.solveTask(currentTask);
+         end if;
          
          select
             w(currentTask.Author).Notify(currentTask);
+            if v then
+               Put_Line("[MCH " & Integer'Image(myId) & "] solved " & TaskItem.printTask(currentTask));
+            end if;
          or
             delay 0.001;
          end select;
-         
-         
-         if v then
-            Put_Line("[MCH " & Integer'Image(myId) & "] solved " & TaskItem.printTask(currentTask));
+
+         if not b and RandGen.get_random(100) < Config.breakingProbability then
+            b := True;
          end if;
+         
          
          delay t;
          
@@ -199,8 +221,7 @@ package body Tasking is
                select
                   accept Notify (n : in myTask) do
                      currentTask := n;
-                        done := True;
-                        tasks := tasks + 1;
+                     done := True;
                   end Notify;
                or
                   delay Config.workerWait;
@@ -208,13 +229,22 @@ package body Tasking is
             end loop;
          end if;
          
-         currentItem := (Value => currentTask.Res);
+         if currentTask.Brk then
+            if v then
+               Put_Line("[WOR " & Integer'Image(myId) & "] found broken machine " & Integer'Image(currentMachine));
+            end if;
+            Service.brokenMachine(currentMachine);
+         else
+            tasks := tasks + 1;
+            
+            currentItem := (Value => currentTask.Res);
          
-         ItemQueue.newItem(currentItem);
-         
-         if v then
-            Put_Line("[WOR " & Integer'Image(myId) & "] solved and got " & TaskItem.printItem(currentItem));
+            ItemQueue.newItem(currentItem);
+            if v then
+               Put_Line("[WOR " & Integer'Image(myId) & "] solved and got " & TaskItem.printItem(currentItem));
+            end if;
          end if;
+       
          delay t;
       end loop;
       
@@ -245,6 +275,81 @@ package body Tasking is
       end loop;
    end Client;
    
+   task body Service is
+      package machineQueue is new Ada.Containers.Vectors(Natural, Integer);
+      queue: machineQueue.Vector;
+      
+      v: Boolean;
+      mach: Integer;
+      
+      flag: Boolean;
+      takenMen: array (0..Config.repairMan) of Boolean;
+      brokenMachines: array (0..Config.machines) of Boolean;
+   begin
+      v := Config.verbose;
+      
+      loop
+         select
+            when True => accept fixedMachine (job : in Service_Job) do
+               brokenMachines(job.machine) := False;
+               if Integer(queue.Length) > 0 then
+                  mach := queue(0);
+                  queue.Delete_First;
+                  r(job.repairman).repair(mach);
+               else
+                  takenMen(job.repairman) := False;
+               end if;
+            end fixedMachine;
+         or
+            when True => accept brokenMachine (machine : in Integer) do
+               if not brokenMachines(machine) then
+                  brokenMachines(machine) := True;
+                  flag := False;
+                  for I in takenMen'Range loop
+                     if not takenMen(I) then
+                        takenMen(I) := True;
+                        flag := True;
+                        r(I).repair(machine);
+                     end if;
+                  end loop;
+                  if not flag then
+                     queue.Append(machine);
+                  end if;
+               end if;
+            end brokenMachine;
+         end select;
+      end loop;
+   end Service;
+   
+   task body Repairman is
+      v: Boolean;
+      t: Duration;
+      
+      myId: Integer;
+      job: Service_Job;
+   begin
+      v := Config.verbose;
+      t := Config.repairTime;
+      
+      accept Id (id : in Integer) do
+         myId := id;
+      end Id;
+      
+      loop
+         accept repair (machine : in Integer) do
+            delay t;
+            m(machine).backdoor;
+            if v then
+               Put_Line("[SER " & Integer'Image(myId) & "] fixes " & Integer'Image(machine));
+            end if;
+            job := (machine, myId);
+            Service.fixedMachine(job);
+         end repair;
+      end loop;
+   end Repairman;
+   
+   
+   
 begin
    for i in w'Range loop
       w(i).Id(i);
@@ -257,6 +362,11 @@ begin
    for i in c'Range loop
       c(i).Id(i);
    end loop;
+   
+   for i in r'Range loop
+      r(i).Id(i);
+   end loop;
+   
    
    if not Config.verbose then
       loop

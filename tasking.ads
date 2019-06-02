@@ -2,10 +2,16 @@ with TaskItem;
 use TaskItem;
 
 package Tasking is
-
+   type Service_Job is
+      record
+         machine: Integer;
+         repairman: Integer;
+      end record;
+   
    task type Machine is
       entry Id (id: in Integer);
       entry newTask (newTask: in myTask);
+      entry backdoor;
    end Machine;
    
    task type Ceo is
@@ -30,7 +36,18 @@ package Tasking is
    task ItemQueue is
       entry newItem (newItem: in myItem);
       entry getItem (newItem: out myItem);
-      entry state;   
+      entry state;
    end ItemQueue;
+   
+   task Service is
+      entry brokenMachine (machine: in Integer);
+      entry fixedMachine (job: in Service_Job);
+   end Service;
+   
+   task type Repairman is
+      entry Id (id: in Integer);
+      entry repair (machine: in Integer);
+   end Repairman;
+   
    
 end tasking;

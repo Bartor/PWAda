@@ -44,7 +44,7 @@ package body TaskItem is
          when others => OprAccess := add'Access;    
       end case;
       
-      newTask := (Fst, Snd, OprAccess, 0, -1);
+      newTask := (False, Fst, Snd, OprAccess, 0, -1);
       
       return newTask;
             

@@ -10,6 +10,7 @@ package TaskItem is
    
    type myTask is
       record
+         Brk: Boolean;
          Fst: Integer;
          Snd: Integer;
          Opr: OperationAccess;
